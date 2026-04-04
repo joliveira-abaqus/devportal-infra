@@ -1,0 +1,25 @@
+# Variáveis de ambiente
+.env
+
+# Volumes Docker
+pgdata/
+data/
+
+# Logs
+*.log
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Arquivos temporários
+tmp/
+temp/
