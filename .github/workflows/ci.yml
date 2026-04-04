@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validar configuração e scripts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Validar sintaxe do docker-compose.yml
+        run: docker compose config --quiet
+
+      - name: Instalar shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Lint dos shell scripts
+        run: |
+          shellcheck localstack/init-aws.sh
+          shellcheck scripts/seed-db.sh
+          shellcheck scripts/setup-dev.sh
+
+  smoke-test:
+    name: Smoke test dos serviços
+    runs-on: ubuntu-latest
+    needs: validate
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Tornar scripts executáveis
+        run: chmod +x localstack/init-aws.sh scripts/*.sh
+
+      - name: Subir serviços
+        run: docker compose up -d
+
+      - name: Aguardar PostgreSQL ficar healthy
+        run: |
+          for i in $(seq 1 30); do
+            status=$(docker inspect --format='{{.State.Health.Status}}' devportal-postgres 2>/dev/null || echo "not_found")
+            if [ "$status" = "healthy" ]; then
+              echo "PostgreSQL está healthy!"
+              exit 0
+            fi
+            echo "Aguardando PostgreSQL... ($i/30) - status: $status"
+            sleep 2
+          done
+          echo "PostgreSQL não ficou healthy a tempo"
+          docker compose logs postgres
+          exit 1
+
+      - name: Aguardar Redis ficar healthy
+        run: |
+          for i in $(seq 1 30); do
+            status=$(docker inspect --format='{{.State.Health.Status}}' devportal-redis 2>/dev/null || echo "not_found")
+            if [ "$status" = "healthy" ]; then
+              echo "Redis está healthy!"
+              exit 0
+            fi
+            echo "Aguardando Redis... ($i/30) - status: $status"
+            sleep 2
+          done
+          echo "Redis não ficou healthy a tempo"
+          docker compose logs redis
+          exit 1
+
+      - name: Aguardar LocalStack ficar healthy
+        run: |
+          for i in $(seq 1 30); do
+            status=$(docker inspect --format='{{.State.Health.Status}}' devportal-localstack 2>/dev/null || echo "not_found")
+            if [ "$status" = "healthy" ]; then
+              echo "LocalStack está healthy!"
+              exit 0
+            fi
+            echo "Aguardando LocalStack... ($i/30) - status: $status"
+            sleep 2
+          done
+          echo "LocalStack não ficou healthy a tempo"
+          docker compose logs localstack
+          exit 1
+
+      - name: Verificar conexão PostgreSQL
+        run: |
+          docker exec devportal-postgres pg_isready -U devportal -d devportal
+
+      - name: Verificar conexão Redis
+        run: |
+          docker exec devportal-redis redis-cli ping | grep -q PONG
+
+      - name: Verificar bucket S3 no LocalStack
+        run: |
+          docker exec devportal-localstack awslocal s3 ls | grep -q devportal-attachments
+
+      - name: Verificar fila SQS no LocalStack
+        run: |
+          docker exec devportal-localstack awslocal sqs list-queues | grep -q devportal-requests
+
+      - name: Executar seed do banco de dados
+        run: |
+          docker exec devportal-postgres psql -U devportal -d devportal -c "
+            CREATE TABLE IF NOT EXISTS users (
+                id            BIGSERIAL    PRIMARY KEY,
+                email         VARCHAR(255) NOT NULL UNIQUE,
+                name          VARCHAR(255) NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                created_at    TIMESTAMP    NOT NULL DEFAULT NOW(),
+                updated_at    TIMESTAMP    NOT NULL DEFAULT NOW()
+            );
+            INSERT INTO users (email, name, password_hash)
+            VALUES ('dev@devportal.local', 'Dev User', '\$2a\$10\$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy')
+            ON CONFLICT (email) DO NOTHING;
+          "
+
+      - name: Verificar usuário de teste
+        run: |
+          docker exec devportal-postgres psql -U devportal -d devportal -c "SELECT email, name FROM users WHERE email='dev@devportal.local';" | grep -q "dev@devportal.local"
+
+      - name: Parar serviços
+        if: always()
+        run: docker compose down -v
