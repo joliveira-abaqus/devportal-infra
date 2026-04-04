@@ -1,19 +1,16 @@
 #!/usr/bin/env bash
 # Script para popular o banco de dados com schema e dados de teste
+# Executa via docker exec — não requer psql instalado no host
 
 set -euo pipefail
 
-PGHOST="${PGHOST:-localhost}"
-PGPORT="${PGPORT:-5432}"
+CONTAINER="${POSTGRES_CONTAINER:-devportal-postgres}"
 PGUSER="${PGUSER:-devportal}"
-PGPASSWORD="${PGPASSWORD:-devportal}"
 PGDATABASE="${PGDATABASE:-devportal}"
 
-export PGPASSWORD
+echo "==> Conectando ao PostgreSQL no container ${CONTAINER}..."
 
-echo "==> Conectando ao PostgreSQL em ${PGHOST}:${PGPORT}..."
-
-psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" <<'SQL'
+docker exec -i "$CONTAINER" psql -U "$PGUSER" -d "$PGDATABASE" <<'SQL'
 -- Tabela de usuários
 CREATE TABLE IF NOT EXISTS users (
     id            BIGSERIAL    PRIMARY KEY,
@@ -55,7 +52,7 @@ INSERT INTO users (email, name, password_hash)
 VALUES (
     'dev@devportal.local',
     'Dev User',
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'
+    '$2b$10$rjN9E7P0rombOVtOhFryuOVciZSvb.OI8SLfmFdqlFpyHeRCig3cq'
 )
 ON CONFLICT (email) DO NOTHING;
 

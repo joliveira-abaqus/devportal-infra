@@ -104,20 +104,7 @@ jobs:
           docker exec devportal-localstack awslocal sqs list-queues | grep -q devportal-requests
 
       - name: Executar seed do banco de dados
-        run: |
-          docker exec devportal-postgres psql -U devportal -d devportal -c "
-            CREATE TABLE IF NOT EXISTS users (
-                id            BIGSERIAL    PRIMARY KEY,
-                email         VARCHAR(255) NOT NULL UNIQUE,
-                name          VARCHAR(255) NOT NULL,
-                password_hash VARCHAR(255) NOT NULL,
-                created_at    TIMESTAMP    NOT NULL DEFAULT NOW(),
-                updated_at    TIMESTAMP    NOT NULL DEFAULT NOW()
-            );
-            INSERT INTO users (email, name, password_hash)
-            VALUES ('dev@devportal.local', 'Dev User', '\$2a\$10\$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy')
-            ON CONFLICT (email) DO NOTHING;
-          "
+        run: ./scripts/seed-db.sh
 
       - name: Verificar usuário de teste
         run: |
