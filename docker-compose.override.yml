@@ -1,0 +1,19 @@
+# Override para desenvolvimento local
+# Configurações adicionais de debug e logging verboso
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_LOG_STATEMENT: all
+    command: ["postgres", "-c", "log_statement=all", "-c", "log_connections=on"]
+
+  redis:
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--loglevel", "verbose"]
+
+  localstack:
+    environment:
+      DEBUG: 1
+      LS_LOG: trace
