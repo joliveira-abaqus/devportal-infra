@@ -33,6 +33,7 @@ services:
     environment:
       SERVICES: s3,sqs
       DEFAULT_REGION: us-east-1
+      LOCALSTACK_ACKNOWLEDGE_ACCOUNT_REQUIREMENT: 1
     ports:
       - "4566:4566"
     volumes:
