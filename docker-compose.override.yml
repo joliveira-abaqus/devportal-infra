@@ -1,12 +1,10 @@
 # Override para desenvolvimento local
 # Configurações adicionais de debug e logging verboso
 services:
-  postgres:
+  mongodb:
     ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_LOG_STATEMENT: all
-    command: ["postgres", "-c", "log_statement=all", "-c", "log_connections=on"]
+      - "27017:27017"
+    command: ["mongod", "--setParameter", "diagnosticDataCollectionEnabled=false"]
 
   redis:
     ports:

@@ -19,7 +19,7 @@ Este script:
 1. Verifica se Docker e Docker Compose estão instalados
 2. Sobe todos os serviços
 3. Aguarda os serviços ficarem healthy
-4. Popula o banco de dados com schema e dados de teste
+4. Popula o banco de dados com collections, índices e dados de teste
 
 ### Setup manual
 
@@ -38,15 +38,15 @@ docker compose ps
 
 | Serviço     | Porta  | Descrição                          |
 |-------------|--------|------------------------------------|
-| PostgreSQL  | 5432   | Banco de dados principal           |
+| MongoDB     | 27017  | Banco de dados principal           |
 | Redis       | 6379   | Cache e filas                      |
 | LocalStack  | 4566   | Emulação de serviços AWS (S3, SQS) |
 
 ### Credenciais
 
-| Serviço    | Usuário     | Senha       | Database    |
-|------------|-------------|-------------|-------------|
-| PostgreSQL | `devportal` | `devportal` | `devportal` |
+| Serviço  | Usuário     | Senha       | Database    |
+|----------|-------------|-------------|-------------|
+| MongoDB  | `devportal` | `devportal` | `devportal` |
 
 ### Recursos AWS (LocalStack)
 

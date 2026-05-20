@@ -42,19 +42,19 @@ jobs:
       - name: Subir serviços
         run: docker compose up -d
 
-      - name: Aguardar PostgreSQL ficar healthy
+      - name: Aguardar MongoDB ficar healthy
         run: |
           for i in $(seq 1 30); do
-            status=$(docker inspect --format='{{.State.Health.Status}}' devportal-postgres 2>/dev/null || echo "not_found")
+            status=$(docker inspect --format='{{.State.Health.Status}}' devportal-mongodb 2>/dev/null || echo "not_found")
             if [ "$status" = "healthy" ]; then
-              echo "PostgreSQL está healthy!"
+              echo "MongoDB está healthy!"
               exit 0
             fi
-            echo "Aguardando PostgreSQL... ($i/30) - status: $status"
+            echo "Aguardando MongoDB... ($i/30) - status: $status"
             sleep 2
           done
-          echo "PostgreSQL não ficou healthy a tempo"
-          docker compose logs postgres
+          echo "MongoDB não ficou healthy a tempo"
+          docker compose logs mongodb
           exit 1
 
       - name: Aguardar Redis ficar healthy
@@ -87,9 +87,9 @@ jobs:
           docker compose logs localstack
           exit 1
 
-      - name: Verificar conexão PostgreSQL
+      - name: Verificar conexão MongoDB
         run: |
-          docker exec devportal-postgres pg_isready -U devportal -d devportal
+          docker exec devportal-mongodb mongosh --eval "db.adminCommand('ping')"
 
       - name: Verificar conexão Redis
         run: |
@@ -108,7 +108,11 @@ jobs:
 
       - name: Verificar usuário de teste
         run: |
-          docker exec devportal-postgres psql -U devportal -d devportal -c "SELECT email, name FROM users WHERE email='dev@devportal.local';" | grep -q "dev@devportal.local"
+          docker exec devportal-mongodb mongosh "mongodb://devportal:devportal@localhost:27017/devportal?authSource=admin" --eval "
+            const user = db.users.findOne({ email: 'dev@devportal.local' });
+            if (!user) { throw new Error('Usuário de teste não encontrado'); }
+            print('Usuário encontrado: ' + user.email + ' - ' + user.name);
+          "
 
       - name: Parar serviços
         if: always()

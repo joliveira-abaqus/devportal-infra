@@ -59,7 +59,7 @@ wait_for_healthy() {
     error "${service} não ficou healthy após $((MAX_RETRIES * RETRY_INTERVAL))s"
 }
 
-wait_for_healthy "postgres"
+wait_for_healthy "mongodb"
 wait_for_healthy "redis"
 wait_for_healthy "localstack"
 
@@ -75,7 +75,7 @@ echo "============================================="
 echo ""
 echo "  Serviços disponíveis:"
 echo "  ─────────────────────────────────────────"
-echo "  PostgreSQL : localhost:5432  (user: devportal / pass: devportal)"
+echo "  MongoDB    : localhost:27017 (user: devportal / pass: devportal)"
 echo "  Redis      : localhost:6379"
 echo "  LocalStack : localhost:4566"
 echo "  S3 Bucket  : devportal-attachments"

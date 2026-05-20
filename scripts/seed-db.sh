@@ -1,61 +1,89 @@
 #!/usr/bin/env bash
-# Script para popular o banco de dados com schema e dados de teste
-# Executa via docker exec — não requer psql instalado no host
+# Script para popular o banco de dados MongoDB com collections, índices e dados de teste
+# Executa via docker exec — não requer mongosh instalado no host
 
 set -euo pipefail
 
-CONTAINER="${POSTGRES_CONTAINER:-devportal-postgres}"
-PGUSER="${PGUSER:-devportal}"
-PGDATABASE="${PGDATABASE:-devportal}"
+CONTAINER="${MONGO_CONTAINER:-devportal-mongodb}"
+MONGO_USER="${MONGO_USER:-devportal}"
+MONGO_PASS="${MONGO_PASS:-devportal}"
+MONGO_DB="${MONGO_DB:-devportal}"
 
-echo "==> Conectando ao PostgreSQL no container ${CONTAINER}..."
+echo "==> Conectando ao MongoDB no container ${CONTAINER}..."
 
-docker exec -i "$CONTAINER" psql -U "$PGUSER" -d "$PGDATABASE" <<'SQL'
--- Tabela de usuários
-CREATE TABLE IF NOT EXISTS users (
-    id            BIGSERIAL    PRIMARY KEY,
-    email         VARCHAR(255) NOT NULL UNIQUE,
-    name          VARCHAR(255) NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    created_at    TIMESTAMP    NOT NULL DEFAULT NOW(),
-    updated_at    TIMESTAMP    NOT NULL DEFAULT NOW()
+docker exec -i "$CONTAINER" mongosh "mongodb://${MONGO_USER}:${MONGO_PASS}@localhost:27017/${MONGO_DB}?authSource=admin" <<'MONGOSCRIPT'
+
+// Collection: users
+db.createCollection("users", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["email", "name", "passwordHash", "createdAt", "updatedAt"],
+      properties: {
+        email: { bsonType: "string" },
+        name: { bsonType: "string" },
+        passwordHash: { bsonType: "string" },
+        createdAt: { bsonType: "date" },
+        updatedAt: { bsonType: "date" }
+      }
+    }
+  }
+});
+db.users.createIndex({ email: 1 }, { unique: true });
+
+// Collection: requests
+db.createCollection("requests", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["userId", "title", "status", "createdAt", "updatedAt"],
+      properties: {
+        userId: { bsonType: "objectId" },
+        title: { bsonType: "string" },
+        description: { bsonType: "string" },
+        status: { bsonType: "string", enum: ["PENDING", "APPROVED", "REJECTED"] },
+        createdAt: { bsonType: "date" },
+        updatedAt: { bsonType: "date" }
+      }
+    }
+  }
+});
+db.requests.createIndex({ userId: 1 });
+
+// Collection: request_events
+db.createCollection("request_events", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["requestId", "eventType", "createdAt"],
+      properties: {
+        requestId: { bsonType: "objectId" },
+        eventType: { bsonType: "string" },
+        payload: { bsonType: "object" },
+        createdAt: { bsonType: "date" }
+      }
+    }
+  }
+});
+db.request_events.createIndex({ requestId: 1 });
+
+// Usuário de teste
+// Senha: DevPortal123! (bcrypt hash)
+db.users.updateOne(
+  { email: "dev@devportal.local" },
+  {
+    $setOnInsert: {
+      email: "dev@devportal.local",
+      name: "Dev User",
+      passwordHash: "$2b$10$rjN9E7P0rombOVtOhFryuOVciZSvb.OI8SLfmFdqlFpyHeRCig3cq",
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  },
+  { upsert: true }
 );
 
--- Tabela de requisições
-CREATE TABLE IF NOT EXISTS requests (
-    id          BIGSERIAL    PRIMARY KEY,
-    user_id     BIGINT       NOT NULL REFERENCES users(id),
-    title       VARCHAR(255) NOT NULL,
-    description TEXT,
-    status      VARCHAR(50)  NOT NULL DEFAULT 'PENDING',
-    created_at  TIMESTAMP    NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMP    NOT NULL DEFAULT NOW()
-);
-
--- Tabela de eventos de requisição
-CREATE TABLE IF NOT EXISTS request_events (
-    id          BIGSERIAL    PRIMARY KEY,
-    request_id  BIGINT       NOT NULL REFERENCES requests(id),
-    event_type  VARCHAR(100) NOT NULL,
-    payload     JSONB,
-    created_at  TIMESTAMP    NOT NULL DEFAULT NOW()
-);
-
--- Índices
-CREATE INDEX IF NOT EXISTS idx_requests_user_id ON requests(user_id);
-CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
-CREATE INDEX IF NOT EXISTS idx_request_events_request_id ON request_events(request_id);
-
--- Usuário de teste
--- Senha: DevPortal123! (bcrypt hash)
-INSERT INTO users (email, name, password_hash)
-VALUES (
-    'dev@devportal.local',
-    'Dev User',
-    '$2b$10$rjN9E7P0rombOVtOhFryuOVciZSvb.OI8SLfmFdqlFpyHeRCig3cq'
-)
-ON CONFLICT (email) DO NOTHING;
-
-SQL
+print("Seed concluído com sucesso!");
+MONGOSCRIPT
 
 echo "==> Banco de dados populado com sucesso!"

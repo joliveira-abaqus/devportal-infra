@@ -2,7 +2,7 @@
 .env
 
 # Volumes Docker
-pgdata/
+mongodata/
 data/
 
 # Logs
