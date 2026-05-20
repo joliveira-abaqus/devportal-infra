@@ -14,57 +14,69 @@ echo "==> Conectando ao MongoDB no container ${CONTAINER}..."
 docker exec -i "$CONTAINER" mongosh "mongodb://${MONGO_USER}:${MONGO_PASS}@localhost:27017/${MONGO_DB}?authSource=admin" <<'MONGOSCRIPT'
 
 // Collection: users
-db.createCollection("users", {
-  validator: {
-    $jsonSchema: {
-      bsonType: "object",
-      required: ["email", "name", "passwordHash", "createdAt", "updatedAt"],
-      properties: {
-        email: { bsonType: "string" },
-        name: { bsonType: "string" },
-        passwordHash: { bsonType: "string" },
-        createdAt: { bsonType: "date" },
-        updatedAt: { bsonType: "date" }
+try {
+  db.createCollection("users", {
+    validator: {
+      $jsonSchema: {
+        bsonType: "object",
+        required: ["email", "name", "passwordHash", "createdAt", "updatedAt"],
+        properties: {
+          email: { bsonType: "string" },
+          name: { bsonType: "string" },
+          passwordHash: { bsonType: "string" },
+          createdAt: { bsonType: "date" },
+          updatedAt: { bsonType: "date" }
+        }
       }
     }
-  }
-});
+  });
+} catch (e) {
+  if (e.codeName !== 'NamespaceExists') throw e;
+}
 db.users.createIndex({ email: 1 }, { unique: true });
 
 // Collection: requests
-db.createCollection("requests", {
-  validator: {
-    $jsonSchema: {
-      bsonType: "object",
-      required: ["userId", "title", "status", "createdAt", "updatedAt"],
-      properties: {
-        userId: { bsonType: "objectId" },
-        title: { bsonType: "string" },
-        description: { bsonType: "string" },
-        status: { bsonType: "string", enum: ["PENDING", "APPROVED", "REJECTED"] },
-        createdAt: { bsonType: "date" },
-        updatedAt: { bsonType: "date" }
+try {
+  db.createCollection("requests", {
+    validator: {
+      $jsonSchema: {
+        bsonType: "object",
+        required: ["userId", "title", "status", "createdAt", "updatedAt"],
+        properties: {
+          userId: { bsonType: "objectId" },
+          title: { bsonType: "string" },
+          description: { bsonType: "string" },
+          status: { bsonType: "string", enum: ["PENDING", "APPROVED", "REJECTED"] },
+          createdAt: { bsonType: "date" },
+          updatedAt: { bsonType: "date" }
+        }
       }
     }
-  }
-});
+  });
+} catch (e) {
+  if (e.codeName !== 'NamespaceExists') throw e;
+}
 db.requests.createIndex({ userId: 1 });
 
 // Collection: request_events
-db.createCollection("request_events", {
-  validator: {
-    $jsonSchema: {
-      bsonType: "object",
-      required: ["requestId", "eventType", "createdAt"],
-      properties: {
-        requestId: { bsonType: "objectId" },
-        eventType: { bsonType: "string" },
-        payload: { bsonType: "object" },
-        createdAt: { bsonType: "date" }
+try {
+  db.createCollection("request_events", {
+    validator: {
+      $jsonSchema: {
+        bsonType: "object",
+        required: ["requestId", "eventType", "createdAt"],
+        properties: {
+          requestId: { bsonType: "objectId" },
+          eventType: { bsonType: "string" },
+          payload: { bsonType: "object" },
+          createdAt: { bsonType: "date" }
+        }
       }
     }
-  }
-});
+  });
+} catch (e) {
+  if (e.codeName !== 'NamespaceExists') throw e;
+}
 db.request_events.createIndex({ requestId: 1 });
 
 // Usuário de teste
