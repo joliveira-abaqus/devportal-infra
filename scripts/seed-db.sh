@@ -14,6 +14,20 @@ PGDATABASE="${PGDATABASE:-devportal}"
 
 echo "==> Conectando ao PostgreSQL no container ${CONTAINER}..."
 
+# Bancos criados por versões antigas deste script têm users.id BIGSERIAL e
+# requests.user_id; os CREATE TABLE IF NOT EXISTS abaixo seriam ignorados e o
+# resto do script falharia de forma difícil de diagnosticar.
+legacy=$(docker exec -i "$CONTAINER" psql -tAX -U "$PGUSER" -d "$PGDATABASE" -c \
+    "SELECT 1 FROM information_schema.columns
+     WHERE table_name = 'requests' AND column_name = 'user_id'")
+
+if [ -n "$legacy" ]; then
+    echo "ERRO: o banco '${PGDATABASE}' tem o schema antigo (requests.user_id)," >&2
+    echo "      incompatível com o schema atual (requests.author_id)." >&2
+    echo "      Recrie o volume: docker compose down -v && ./scripts/setup-dev.sh" >&2
+    exit 1
+fi
+
 docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -U "$PGUSER" -d "$PGDATABASE" <<'SQL'
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
